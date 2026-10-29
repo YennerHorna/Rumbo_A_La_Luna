@@ -68,7 +68,7 @@ class LobbyScene extends Phaser.Scene {
     });
     this.dom.querySelector('[data-accion="crear"]').addEventListener('click', () => this.crear());
     this.dom.querySelector('.lobby-volver').addEventListener('click', () => {
-      Red.cerrar();
+      Red.salir();
       this.irA('Title');
     });
   }

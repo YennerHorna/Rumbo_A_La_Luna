@@ -226,6 +226,15 @@ function repartirPiezas(nivel, jugadores) {
   return n;
 }
 
+// Piezas nuevas solo para el jugador "owner" (al reiniciar su parte): por cada sitio, la lista de sus piezas
+function repartirJugador(nivel, owner) {
+  const reparto = exportarReparto(repartirPiezas(nivel, 1));
+  Object.keys(reparto).forEach((tipo) => {
+    reparto[tipo] = reparto[tipo].map((lista) => lista.map(({ key }) => ({ key, owner })));
+  });
+  return reparto;
+}
+
 // En online el anfitrión reparte las piezas de los dos y se lo manda al compañero: solo viajan los
 // "objetos" de cada sitio
 function exportarReparto(n) {
@@ -681,22 +690,101 @@ class GameScene extends Phaser.Scene {
 
   // Sin vidas. Si ya no queda nadie, se acaba la partida; con 2 jugadores, el que queda sigue solo
   // y la vista del eliminado pasa a seguir a su compañero.
-  playerOut(p) {
+  // aviso = false: sin el mensaje de "se quedó sin vidas" (por ejemplo, si el compañero online se fue)
+  // Con 1 jugador se acaba la partida. Con 2, solo el que perdió puede reiniciar su parte (panel en su mitad)
+  // y, mientras, su mitad sigue al compañero, que juega sin interrupción.
+  // aviso = false: sin el mensaje de "se quedó sin vidas" (por ejemplo, si el compañero online se fue)
+  playerOut(p, aviso = true) {
     p.out = true;
     if (this.online && !p.remoto) Red.enviar({ t: 'fuera' });
-    const vivo = this.players.find((o) => !o.out);
-    if (!vivo) {
+    if (!this.dosJugadores) {
       this.showGameOver();
       return;
     }
     p.sprite.setVisible(false);
     p.sprite.body.enable = false;
-    vivo.sprite.cameraFilter &= ~p.cam.id; // ahora su mitad también lo ve
-    p.cam.startFollow(vivo.sprite, true, 0.12, 0.12);
-    this.checkComplete(); // si al que queda ya tenía su traje completo, se termina el nivel
+    const vivo = this.players.find((o) => !o.out);
+    if (vivo) {
+      vivo.sprite.cameraFilter &= ~p.cam.id; // ahora su mitad también lo ve
+      p.cam.startFollow(vivo.sprite, true, 0.12, 0.12);
+    }
+    if (!p.remoto && !p.desconectado) this.showRestartPanel(p);
+    this.checkComplete(); // por si el que queda ya tenía su traje completo y el otro se fue
+    if (!aviso || !vivo) return;
     const nombre = (n, i) => (n || `Jugador ${i + 1}`).toUpperCase();
     this.showNotice(`${nombre(p.nombre, p.index)} SE QUEDÓ SIN VIDAS`,
       `¡${nombre(vivo.nombre, vivo.index)} sigue la misión!`, 4000);
+  }
+
+  // Panel en la mitad del jugador p para que reinicie su parte (con el ratón o con su tecla de golpear)
+  showRestartPanel(p) {
+    const tecla = MANDOS[p.mando].golpear.slice(-1)[0]; // la que sale en su panel de controles
+    const mitad = this.scale.height / 2 / PANTALLA_DIVIDIDA.zoomHud; // alto de una mitad en coordenadas del HUD
+    p.restartPanel = this.asHud(p, () => {
+      const w = 520;
+      const h = 190;
+      const capa = this.add.container(this.hudWidth / 2, mitad / 2).setScrollFactor(0).setDepth(130).setAlpha(0);
+      const g = this.add.graphics()
+        .fillStyle(HUD_COLORS.outline).fillRect(-w / 2 - 4, -h / 2 - 4, w + 8, h + 8)
+        .fillStyle(0x3b6fd0).fillRect(-w / 2 - 2, -h / 2 - 2, w + 4, h + 4)
+        .fillStyle(HUD_COLORS.panel, 0.97).fillRect(-w / 2, -h / 2, w, h);
+      const titulo = this.add.text(0, -h / 2 + 18, '¡TE QUEDASTE SIN VIDAS!', {
+        fontFamily: this.font, fontSize: '28px', fontStyle: '800', color: '#e8341c',
+      }).setOrigin(0.5, 0).setShadow(3, 3, '#112021', 0, false, true);
+      const texto = this.add.text(0, -h / 2 + 62, `Vuelve a empezar tu parte (pulsa ${tecla} o el botón).\nTu compañero sigue jugando.`, {
+        fontFamily: this.font, fontSize: '17px', color: '#f2fbff', align: 'center', lineSpacing: 4,
+      }).setOrigin(0.5, 0);
+      const boton = this.gameOverButton(0, h / 2 - 36, 'REINICIAR', 0xf3c623, () => this.restartPlayer(p));
+      capa.add([g, titulo, texto, boton]);
+      this.tweens.add({ targets: capa, alpha: 1, duration: 400 });
+      return capa;
+    });
+  }
+
+  // El jugador p vuelve a empezar su parte: 3 vidas, en la entrada, con su mundo y sus piezas de cero.
+  // "reparto": sus piezas nuevas (en online, las del compañero llegan por la red; si no, se reparten aquí).
+  restartPlayer(p, reparto = repartirJugador(this.nivel, p.index)) {
+    if (!p.out || this.completado) return;
+    if (p.restartPanel) {
+      p.restartPanel.destroy();
+      p.restartPanel = null;
+      Sonido.efecto('clic');
+    }
+    if (this.online && !p.remoto) {
+      // Al compañero se le mandan las piezas con su número de jugador de allí (este ordenador es el 1)
+      const suyo = {};
+      Object.keys(reparto).forEach((tipo) => {
+        suyo[tipo] = reparto[tipo].map((lista) => lista.map(({ key }) => ({ key, owner: 1 })));
+      });
+      Red.enviar({ t: 'reinicio', reparto: suyo });
+    }
+    this.rebuildWorld(this.mundos[p.index], reparto);
+    p.out = false;
+    p.dead = false;
+    p.lives = HEALTH.vidas;
+    p.health = HEALTH.max;
+    p.hurtUntil = 0;
+    p.invulnerableUntil = 0;
+    p.wasCrouching = false;
+    Object.keys(p.itemCount).forEach((key) => { p.itemCount[key] = 0; });
+    this.drawItemsHud(p);
+    this.updateLives(p);
+    this.updateHealthBar(p);
+    p.sprite.setVisible(true).setAlpha(1);
+    if (p.remoto) {
+      p.sprite.setPosition(p.spawn.x, p.spawn.y);
+      p.objetivo = null;
+    } else {
+      p.sprite.body.enable = true;
+      p.sprite.body.reset(p.spawn.x, p.spawn.y);
+    }
+    this.playAnim(p, 'idle');
+    // Su mitad vuelve a ser solo suya
+    this.players.forEach((o) => {
+      if (o !== p) o.sprite.cameraFilter |= p.cam.id;
+    });
+    p.cam.startFollow(p.sprite, true, 0.12, 0.12);
+    p.cam.flash(300, 255, 255, 255);
   }
 
   // Golpe: alcanza a un enemigo o rompe una caja rompible que esté justo delante.
@@ -987,8 +1075,10 @@ class GameScene extends Phaser.Scene {
   }
 
   // El Nivel 1 termina cuando todos los que siguen en juego tienen su traje completo
+  // Con 2 jugadores el que perdió sus vidas puede reiniciar, así que también tiene que completar su traje
+  // (salvo que el compañero online se haya ido)
   checkComplete() {
-    const enJuego = this.players.filter((p) => !p.out);
+    const enJuego = this.players.filter((p) => (this.dosJugadores ? !p.desconectado : !p.out));
     if (enJuego.length && enJuego.every((p) => this.hasAllItems(p))) {
       this.completeLevel(this.dosJugadores ? '¡EQUIPOS COMPLETOS!' : '¡EQUIPO COMPLETO!',
         'Todo listo para el lanzamiento del Apolo 11.');
@@ -1283,6 +1373,7 @@ class GameScene extends Phaser.Scene {
   completeLevel(title, text) {
     if (this.completado) return;
     this.completado = true;
+    if (this.online) Red.silenciar(); // los dos vuelven al inicio: no hace falta avisar de que el otro se va
     Voz.detener();
     this.showNotice(title, text, 3500);
     Sonido.efecto('logro');
@@ -1318,8 +1409,7 @@ class GameScene extends Phaser.Scene {
       m.robots = this.physics.add.group();
       m.drones = this.physics.add.group({ allowGravity: false });
       m.lasers = this.physics.add.group({ allowGravity: false });
-      this.nivel.robots.forEach((r, i) => { this.createRobot(m, r).indice = i; });
-      this.nivel.drones.forEach((d, i) => { this.createDrone(m, d).indice = i; });
+      this.createWorldEnemies(m);
 
       this.physics.add.collider(m.robots, this.ground);
       this.physics.add.collider(m.robots, this.solids);
@@ -1329,6 +1419,40 @@ class GameScene extends Phaser.Scene {
         this.physics.add.collider(m.lasers, group, (laser) => this.destroyLaser(laser));
       });
     });
+  }
+
+  // Cajas rompibles del mundo m: solo se ven en su mitad y guardan las piezas de su jugador
+  createWorldCrates(m) {
+    this.nivel.cajasRompibles.forEach((c, indice) => {
+      const zone = this.placeObstacle(m.breakables, 'caja-rompible', c.tile, c.alto);
+      zone.mundo = m;
+      zone.indice = indice; // para decir por la red cuál se ha roto
+      zone.objetos = this.piecesOf(m, c);
+      this.onlyIn(m, zone.image);
+    });
+  }
+
+  createWorldEnemies(m) {
+    this.nivel.robots.forEach((r, i) => { this.createRobot(m, r).indice = i; });
+    this.nivel.drones.forEach((d, i) => { this.createDrone(m, d).indice = i; });
+  }
+
+  // Vuelve a montar el mundo m desde cero (cajas, enemigos y piezas) con el reparto de piezas "reparto"
+  // (ver repartirJugador). El mundo del otro jugador no se toca.
+  rebuildWorld(m, reparto) {
+    m.breakables.getChildren().forEach((zone) => zone.image.destroy());
+    m.breakables.clear(true, true);
+    [m.robots, m.drones, m.lasers].forEach((grupo) => grupo.clear(true, true));
+    this.items.getChildren().filter((it) => it.owner === m.index).forEach((it) => {
+      if (it.motion) it.motion.stop();
+      it.destroy();
+    });
+    // Las piezas de este jugador en cada sitio pasan a ser las del nuevo reparto
+    Object.keys(reparto).forEach((tipo) => this.nivel[tipo].forEach((sitio, i) => {
+      sitio.objetos = sitio.objetos.filter((o) => o.owner !== m.index).concat(reparto[tipo][i]);
+    }));
+    this.createWorldCrates(m);
+    this.createWorldEnemies(m);
   }
 
   // Prepara lo común a todos los enemigos: tamaño, caja de colisión, vida y recorrido
@@ -1645,13 +1769,7 @@ class GameScene extends Phaser.Scene {
   createObstacles() {
     this.nivel.cajas.forEach((c) => this.placeObstacle(this.solids, 'caja', c.tile, c.alto));
     // Cajas rompibles: una copia por mundo, que solo se ve en su mitad y guarda las piezas de su jugador
-    this.mundos.forEach((m) => this.nivel.cajasRompibles.forEach((c, indice) => {
-      const zone = this.placeObstacle(m.breakables, 'caja-rompible', c.tile, c.alto);
-      zone.mundo = m;
-      zone.indice = indice; // para decir por la red cuál se ha roto
-      zone.objetos = this.piecesOf(m, c);
-      this.onlyIn(m, zone.image);
-    }));
+    this.mundos.forEach((m) => this.createWorldCrates(m));
     // Los conos solo hacen daño en su parte central, para que no sea injusto
     this.nivel.conos.forEach((c) => this.placeObstacle(this.hazards, 'cono', c.tile, c.alto, { x: 3, y: 3, w: 10, h: 13 }));
     this.nivel.barreras.forEach((b) => this.placeObstacle(this.solids, 'barrera', b.tile, b.alto, { x: 0, y: 1, w: 32, h: 15 }));
@@ -1786,13 +1904,18 @@ class GameScene extends Phaser.Scene {
     Red.on('inicio', ({ reparto }) => {
       if (this.perdido) this.restartOnline(reparto);
     });
+    // El aviso de que salió o perdió la conexión lo pone js/red.js; aquí el compañero deja de jugar
+    // El compañero reinició su parte: su mundo (la mitad de abajo) vuelve a empezar con sus piezas nuevas
+    Red.on('reinicio', ({ reparto }) => this.restartPlayer(companero, reparto));
     Red.on('desconectado', () => {
-      if (this.completado || this.perdido || companero.out) return;
-      this.playerOut(companero);
-      this.showNotice('TU COMPAÑERO SE DESCONECTÓ', 'Sigues la misión tú solo.', 4000);
+      if (this.retryLabel && this.perdido) this.retryLabel.setText('REINTENTAR');
+      companero.desconectado = true;
+      if (this.completado || this.perdido) return;
+      if (companero.out) this.checkComplete();
+      else this.playerOut(companero, false);
     });
     this.events.once('shutdown', () => {
-      ['pos', 'caja', 'golpe', 'pieza', 'vida', 'fuera', 'reintentar', 'inicio', 'desconectado'].forEach((t) => Red.off(t));
+      ['pos', 'caja', 'golpe', 'pieza', 'vida', 'fuera', 'reinicio', 'reintentar', 'inicio', 'desconectado'].forEach((t) => Red.off(t));
     });
   }
 
@@ -1832,7 +1955,11 @@ class GameScene extends Phaser.Scene {
   }
 
   updatePlayer(p, time) {
-    if (p.out) return;
+    if (p.out) {
+      // Sin vidas: su tecla de golpear reinicia su parte
+      if (p.restartPanel && p.keys.golpear.filter((k) => Phaser.Input.Keyboard.JustDown(k)).length) this.restartPlayer(p);
+      return;
+    }
     const player = p.sprite;
     const body = player.body;
     const onGround = body.blocked.down || body.touching.down;

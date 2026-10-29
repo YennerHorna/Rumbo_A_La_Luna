@@ -37,7 +37,7 @@ class TitleScene extends Phaser.Scene {
     this.scheduleShootingStar(width);
     botonAjustes(this, width - 34, 34);
 
-    Red.cerrar(); // si se vuelve de una partida online, se corta la conexión
+    Red.salir(); // si se vuelve de una partida online, se despide del compañero y corta la conexión
 
     // ← → o 1 / 2 / 3 eligen el modo; ENTER, ESPACIO o un clic empiezan (un clic en el engranaje abre los ajustes)
     this.started = false;

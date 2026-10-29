@@ -7,7 +7,7 @@ const ESPERA = {
   textos: {
     titulo: 'ESPERANDO A TU COMPAÑERO',
     esperando: (nombre) => `${nombre ? nombre.toUpperCase() : 'Tu compañero'} aún está preparándose...`,
-    desconectado: 'Tu compañero se ha desconectado. Volviendo al inicio...',
+    desconectado: 'Volviendo al inicio...',
   },
 };
 

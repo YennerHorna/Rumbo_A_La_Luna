@@ -12,10 +12,12 @@ y el aviso de arriba (nombre del nivel, etc.) sale solo en la mitad de arriba. L
 El tamaño de la vista, la letra y el tamaño de cada texto se ajustan en PANTALLA_DIVIDIDA (GameScene.js).
 - Jugador 1 (arriba): A / D mover, W saltar, S agacharse, F golpear, G correr. Usa la voz (V).
 - Jugador 2 (abajo): flechas mover, ↑ saltar, ↓ agacharse, M golpear, SHIFT correr.
+- Si uno pierde sus 3 vidas, en su mitad sale "¡TE QUEDASTE SIN VIDAS!" con REINICIAR (o su tecla de golpear: F / M;
+  en online, X): vuelve a empezar solo su parte, en la entrada, con 3 vidas, su mundo de cero y piezas nuevas. El
+  compañero sigue jugando sin interrupción. El nivel termina cuando los dos completan su traje.
 - Cada uno recolecta su propio traje: sus 6 piezas están repartidas al azar (por separado de las del otro) y solo él
   las ve y las puede coger. Las cajas rompibles y los enemigos también son de cada uno: lo que rompe o destruye un
-  jugador solo desaparece en su mitad, y los enemigos de cada mitad solo atacan a su jugador. El nivel termina cuando los dos tienen su traje completo. Cada uno tiene sus 3 vidas; si uno las pierde, su vista sigue al compañero, y la partida
-  se pierde cuando no queda nadie.
+  jugador solo desaparece en su mitad, y los enemigos de cada mitad solo atacan a su jugador.
 
 ## Modo online (2 jugadores, cada uno en su ordenador)
 En la portada: **ONLINE**. Uno pulsa "Crear sala" y recibe un código de 4 cifras; el otro lo escribe en "Unirse".
@@ -24,6 +26,9 @@ La partida usa la misma pantalla dividida: arriba juegas tú (con los controles 
 compañero, que se mueve con lo que llega por la red. Cada uno tiene su traje, sus cajas y sus enemigos, igual que en
 local; se comparten la posición, la vida, las piezas recogidas y lo que rompe cada uno. Al perder, cualquiera puede
 pedir "Reintentar" y empiezan los dos con piezas nuevas.
+Si el compañero sale de la sala (vuelve al inicio o cierra el juego) o pierde la conexión (no llega nada suyo en 7 s),
+aparece un aviso arriba en cualquier pantalla ("Luis salió de la sala." / "Luis perdió la conexión.") y se sigue solo
+(en la sala de espera se vuelve al inicio). Los textos y tiempos están en RED (js/red.js).
 - La conexión usa PeerJS (WebRTC): los navegadores se conectan directamente y el servidor público gratuito de PeerJS
   solo sirve para que se encuentren. No hace falta servidor propio.
 - Para jugar con alguien de otro sitio, el juego tiene que estar publicado en internet (GitHub Pages, Netlify, itch.io...).

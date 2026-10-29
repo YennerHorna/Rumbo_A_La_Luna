@@ -627,3 +627,42 @@ html, body {
     grid-template-columns: 1fr;
   }
 }
+
+/* Aviso de la partida online (el compañero salió o perdió la conexión), encima de cualquier pantalla */
+.red-aviso {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  z-index: 20;
+  max-width: calc(100% - 32px);
+  box-sizing: border-box;
+  padding: 10px 20px;
+  font-family: "Rubik", sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  text-align: center;
+  color: var(--ui-texto);
+  background: rgba(14, 32, 56, 0.95);
+  border: 4px solid var(--ui-contorno);
+  box-shadow: 0 0 0 2px var(--ui-error), 4px 4px 0 rgba(0, 0, 0, 0.5);
+  transform: translateX(-50%);
+  animation: red-aviso-entra 0.3s ease-out;
+  transition: opacity 0.5s;
+}
+
+.red-aviso::before {
+  content: "⚠ ";
+  color: var(--ui-error);
+}
+
+.red-aviso.saliendo {
+  opacity: 0;
+}
+
+@keyframes red-aviso-entra {
+  from { transform: translate(-50%, -20px); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .red-aviso { animation: none; transition: none; }
+}
