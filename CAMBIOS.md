@@ -27,8 +27,9 @@ compañero, que se mueve con lo que llega por la red. Cada uno tiene su traje, s
 local; se comparten la posición, la vida, las piezas recogidas y lo que rompe cada uno. Al perder, cualquiera puede
 pedir "Reintentar" y empiezan los dos con piezas nuevas.
 Si el compañero sale de la sala (vuelve al inicio o cierra el juego) o pierde la conexión (no llega nada suyo en 7 s),
-aparece un aviso arriba en cualquier pantalla ("Luis salió de la sala." / "Luis perdió la conexión.") y se sigue solo
-(en la sala de espera se vuelve al inicio). Los textos y tiempos están en RED (js/red.js).
+aparece un aviso arriba en cualquier pantalla ("Luis salió de la sala." / "Luis perdió la conexión.") y la partida
+pasa a ser de 1 jugador, a pantalla completa, conservando todo lo que llevabas (posición, vida, vidas, piezas, cajas
+rotas y enemigos destruidos). En la sala de espera se vuelve al inicio. Los textos y tiempos están en RED (js/red.js).
 - La conexión usa PeerJS (WebRTC): los navegadores se conectan directamente y el servidor público gratuito de PeerJS
   solo sirve para que se encuentren. No hace falta servidor propio.
 - Para jugar con alguien de otro sitio, el juego tiene que estar publicado en internet (GitHub Pages, Netlify, itch.io...).

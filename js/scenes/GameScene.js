@@ -276,9 +276,11 @@ class GameScene extends Phaser.Scene {
     this.font = this.dosJugadores ? PANTALLA_DIVIDIDA.font : SPEECH.font; // letra de los textos del nivel
     this.letra = this.dosJugadores ? PANTALLA_DIVIDIDA.letra : LETRA_NORMAL; // y sus tamaños
     const base = NIVELES[(data && data.nivel) || 1] || NIVEL_1;
-    this.nivel = this.online && data && data.reparto
-      ? aplicarReparto(base, data.reparto, !Red.esAnfitrion)
-      : repartirPiezas(base, this.dosJugadores ? 2 : 1);
+    // { solo }: la partida online sigue en solitario porque el compañero se fue (ver continueSolo)
+    this.continuar = (data && data.solo) || null;
+    if (this.continuar) this.nivel = aplicarReparto(base, this.continuar.reparto, false);
+    else if (this.online && data && data.reparto) this.nivel = aplicarReparto(base, data.reparto, !Red.esAnfitrion);
+    else this.nivel = repartirPiezas(base, this.dosJugadores ? 2 : 1);
     this.tripulantes = [{ nombre: Voz.ajustes.nombre, sexo: Voz.ajustes.sexo }];
     if (this.dosJugadores) this.tripulantes.push(Partida.jugador2);
     // Personaje de cada uno según el sexo de su DNI: M = masculino, F = femenino
@@ -352,6 +354,10 @@ class GameScene extends Phaser.Scene {
     // Cada cámara sigue a su personaje: el fondo (parallax) solo se desplaza cuando él se mueve
     this.players.forEach((p) => p.cam.startFollow(p.sprite, true, 0.12, 0.12));
     this.setupOnline();
+    if (this.continuar) {
+      this.restoreSolo(this.continuar);
+      return;
+    }
     this.allCameras().forEach((cam) => cam.fadeIn(600, 0, 0, 0));
 
     Sonido.musica(this.nivel.musica); // música del nivel; si ya suena esa, no se repite
@@ -1907,12 +1913,12 @@ class GameScene extends Phaser.Scene {
     // El aviso de que salió o perdió la conexión lo pone js/red.js; aquí el compañero deja de jugar
     // El compañero reinició su parte: su mundo (la mitad de abajo) vuelve a empezar con sus piezas nuevas
     Red.on('reinicio', ({ reparto }) => this.restartPlayer(companero, reparto));
+    // y la partida pasa a ser de 1 jugador, a pantalla completa (continueSolo)
     Red.on('desconectado', () => {
       if (this.retryLabel && this.perdido) this.retryLabel.setText('REINTENTAR');
       companero.desconectado = true;
       if (this.completado || this.perdido) return;
-      if (companero.out) this.checkComplete();
-      else this.playerOut(companero, false);
+      this.continueSolo();
     });
     this.events.once('shutdown', () => {
       ['pos', 'caja', 'golpe', 'pieza', 'vida', 'fuera', 'reinicio', 'reintentar', 'inicio', 'desconectado'].forEach((t) => Red.off(t));
@@ -1946,6 +1952,83 @@ class GameScene extends Phaser.Scene {
     }
     s.setFlipX(o.f);
     if (PERSONAJE.animaciones[o.a]) this.playAnim(p, o.a, true);
+  }
+
+  // El compañero online se fue: se vuelve a montar el nivel para 1 jugador (sin pantalla dividida) con todo
+  // lo que llevaba este jugador: posición, vida, vidas, piezas, cajas rotas, enemigos y piezas en el suelo
+  continueSolo() {
+    if (this.leaving) return;
+    this.leaving = true;
+    const p = this.players[0];
+    const m = this.mundos[0];
+    const estado = {
+      // Solo sus piezas (owner 0) en cada sitio
+      reparto: Object.fromEntries(['cajasRompibles', 'robots', 'drones']
+        .map((tipo) => [tipo, this.nivel[tipo].map((sitio) => sitio.objetos.filter((o) => o.owner === 0))])),
+      jugador: {
+        x: p.sprite.x, y: p.sprite.y, flip: p.sprite.flipX,
+        health: p.health, lives: p.lives, out: p.out, itemCount: { ...p.itemCount },
+      },
+      cajas: m.breakables.getChildren().map((z) => ({ i: z.indice, y: z.y, imgY: z.image.y })),
+      enemigos: [...m.robots.getChildren(), ...m.drones.getChildren()]
+        .map((e) => ({ tipo: e.type, i: e.indice, x: e.x, y: e.y, vida: e.vida, dir: e.dir })),
+      piezas: this.items.getChildren().filter((it) => it.owner === 0 && !it.collected)
+        .map((it) => ({ key: it.key, x: it.x, y: it.y })),
+    };
+    Partida.modo = 'local';
+    Partida.jugadores = 1;
+    Partida.jugador2 = null;
+    this.scene.restart({ nivel: this.nivel.numero, solo: estado });
+  }
+
+  // Deja el nivel recién creado como estaba la partida online (ver continueSolo)
+  restoreSolo(estado) {
+    const p = this.players[0];
+    const m = this.mundos[0];
+    const cajas = new Map(estado.cajas.map((c) => [c.i, c]));
+    m.breakables.getChildren().slice().forEach((zone) => {
+      const c = cajas.get(zone.indice);
+      if (!c) { // ya estaba rota
+        zone.image.destroy();
+        m.breakables.remove(zone, true, true);
+        return;
+      }
+      zone.y = c.y; // las que estaban encima de una rota ya habían caído
+      zone.image.y = c.imgY;
+      zone.body.updateFromGameObject();
+    });
+    const enemigos = new Map(estado.enemigos.map((e) => [`${e.tipo}-${e.i}`, e]));
+    [...m.robots.getChildren(), ...m.drones.getChildren()].forEach((enemy) => {
+      const e = enemigos.get(`${enemy.type}-${enemy.indice}`);
+      if (!e) {
+        enemy.destroy();
+        return;
+      }
+      enemy.body.reset(e.x, e.y);
+      enemy.vida = e.vida;
+      enemy.dir = e.dir;
+    });
+    estado.piezas.forEach(({ key, x, y }) => this.spawnItem({ key, owner: 0 }, x, y));
+
+    const j = estado.jugador;
+    Object.assign(p.itemCount, j.itemCount);
+    this.drawItemsHud(p);
+    p.health = j.health;
+    p.shownHealth = j.health;
+    p.lives = j.lives;
+    this.drawHealthBar(p);
+    p.livesText.setText(String(p.lives));
+    p.sprite.body.reset(j.x, j.y);
+    p.sprite.setFlipX(j.flip);
+    p.cam.centerOn(j.x, j.y); // la cámara aparece ya sobre el personaje, sin desplazarse desde el principio
+    if (j.out) {
+      p.out = true;
+      p.sprite.setVisible(false);
+      p.sprite.body.enable = false;
+      this.showGameOver();
+      return;
+    }
+    this.checkComplete();
   }
 
   restartOnline(reparto) {

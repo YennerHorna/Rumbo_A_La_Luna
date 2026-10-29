@@ -44,7 +44,7 @@ Igual que el modo de 2 jugadores, pero cada uno en su ordenador:
 2. El otro escribe ese código en **Unirse**.
 3. Cada uno se identifica en su ordenador, ve el cómic y espera en la sala hasta que los dos están listos.
 
-En la pantalla dividida, arriba juegas tú y abajo ves a tu compañero. Si tu compañero sale de la sala o pierde la conexión, aparece un aviso y sigues tú solo.
+En la pantalla dividida, arriba juegas tú y abajo ves a tu compañero. Si tu compañero sale de la sala o pierde la conexión, aparece un aviso y la partida sigue en modo de 1 jugador, a pantalla completa, sin perder nada de lo que llevabas.
 
 La conexión usa [PeerJS](https://peerjs.com/) (WebRTC): los navegadores se conectan directamente y no hace falta servidor propio. En algunas redes (colegios, empresas) la conexión directa puede estar bloqueada.
 
