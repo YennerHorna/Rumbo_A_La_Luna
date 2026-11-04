@@ -4,6 +4,9 @@ const config = {
   width: 960,
   height: 540,
   pixelArt: true, // mantiene los píxeles nítidos al escalar
+  // Fondo transparente: en el Nivel 2 el espacio 3D (Three.js) se dibuja en otro lienzo, debajo del de Phaser.
+  // Las demás pantallas tapan todo con su propio fondo, así que no cambian.
+  transparent: true,
   audio: { noAudio: true }, // el sonido lo gestiona js/audio.js (un único contexto de audio)
   physics: {
     default: 'arcade',
@@ -17,9 +20,14 @@ const config = {
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
   // Portada (1 jugador, 2 jugadores u online) → [online: sala] → identificación del tripulante (una por jugador
-  // del mismo ordenador) → cómic → [online: espera al compañero] → Nivel 1 → portada
-  scene: [TitleScene, LobbyScene, RegistroScene, ComicScene, EsperaScene, HistoriaScene, GameScene],
+  // del mismo ordenador) → cómic → [online: espera al compañero] → Nivel 1 → Nivel 2 → portada
+  scene: [TitleScene, LobbyScene, RegistroScene, ComicScene, EsperaScene, HistoriaScene, GameScene, Nivel2Scene],
 };
+
+// Atajo para probar: index.html?nivel=2 empieza directamente en el Nivel 2 (1 jugador)
+if (new URLSearchParams(window.location.search).get('nivel') === '2') {
+  config.scene = [Nivel2Scene, ...config.scene.filter((s) => s !== Nivel2Scene)];
+}
 
 // Espera a la fuente de los textos (normal y negrita); si no carga, arranca igual con otra
 // (Lexend es la letra de la pantalla dividida: ver PANTALLA_DIVIDIDA.font en GameScene.js)

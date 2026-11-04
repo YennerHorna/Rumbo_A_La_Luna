@@ -10,7 +10,7 @@
 //   Red.silenciar()                                    no avisar de la desconexión (al terminar el nivel juntos)
 //
 // Los mensajes que llegan antes de que alguien los escuche se guardan y se entregan al hacer Red.on
-// (salvo 'pos', las posiciones, que caducan enseguida). Al cortarse la conexión llega
+// (salvo 'pos' y 'nave', las posiciones, que caducan enseguida). Al cortarse la conexión llega
 // { t: 'desconectado', motivo: 'salio' | 'conexion' } y aparece un aviso arriba, en cualquier pantalla:
 //   'salio':    el compañero salió de la sala (volvió al inicio o cerró el juego)
 //   'conexion': se perdió la conexión (no llega nada suyo desde hace RED.sinRespuesta ms)
@@ -25,6 +25,7 @@ const RED = {
 };
 
 const Red = (() => {
+  const NO_GUARDAR = ['pos', 'nave']; // posiciones (Nivel 1 y nave del Nivel 2): caducan enseguida
   const PREFIJO = 'rumbo-a-la-luna-sala-'; // el código de sala va detrás
   let peer = null;
   let conn = null;
@@ -70,7 +71,7 @@ const Red = (() => {
     }
     const fn = manejadores[msg.t];
     if (fn) fn(msg);
-    else if (msg.t !== 'pos') pendientes.push(msg);
+    else if (!NO_GUARDAR.includes(msg.t)) pendientes.push(msg);
   }
 
   function on(tipo, fn) {

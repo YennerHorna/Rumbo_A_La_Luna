@@ -2,7 +2,30 @@
 
 ## Flujo del juego
 Portada → Registro (nombre, DNI y sexo DNI; el **personaje F/M** sale del sexo: M = masculino, F = femenino) → **Cómic** (carrera espacial + misión del Nivel 1) → Nivel 1 (Preparativos) →
-vuelta a la portada. (El Nivel 2 se ha quitado por ahora.)
+**Nivel 2 (Rumbo a la Luna)** → vuelta a la portada.
+
+## Nivel 2 · Rumbo a la Luna
+Basado en el minijuego "Cazador de Asteroides" (Three.js). La nave del Apolo 11 (módulo de mando, módulo de servicio y
+tobera, hecha con código) viaja 384.400 km hasta la Luna en unos 110 s. Antes, cuenta atrás y despegue con la Tierra abajo.
+- Los asteroides vienen de frente; algunos van directos a la nave. Los grandes aguantan 2 disparos. Cada vez salen más
+  y más rápido. Chocar quita vida (la barra y el corazón con las vidas son los del Nivel 1). Al final ya no salen más.
+- Tanques de oxígeno verdes: recuperan vida.
+- Abajo, barra Tierra → Luna con los km que faltan. La Luna crece al fondo.
+- Nave: blanca con el módulo de mando dorado (con reflejos metálicos), franjas y letras "APOLO 11" del color del
+  jugador (J1 rojo, J2 azul), propulsores de maniobra, antena de 4 platos y tobera con llama, brillo y luz.
+  Disparos amarillos con halo. Los colores están en NIVEL2_UI (naves, casco, capsula).
+- Animación de llegada (unos 18 s, sin HUD): la Luna queda delante y la nave frena → entra en órbita y le da la
+  vuelta (la cámara la sigue; la cara oculta está a oscuras) → se pone de pie y baja con el motor encendido →
+  toca el suelo con una nube de polvo, se levanta la bandera, la Tierra se ve en el cielo y sale
+  "¡LLEGASTE A LA LUNA!". Después, la portada. Los tiempos están en animarLlegada (Nivel2Scene.js).
+- 1 jugador: sin vidas, panel REINTENTAR / IR AL INICIO. 2 jugadores local: las dos naves en la misma pantalla (J1 cian,
+  J2 ámbar); quien pierde sus vidas vuelve con su tecla de disparar. Online: cada uno con sus asteroides y la nave del
+  compañero semitransparente (mensaje 'nave'); si se va, se sigue solo.
+- El 3D va en un lienzo propio debajo del de Phaser (Phaser tiene ahora fondo transparente; las demás pantallas no
+  cambian porque tapan todo con su fondo). El HUD, los avisos, el engranaje y los fundidos siguen siendo de Phaser.
+- Todos los valores (duración, daño, cadencia, asteroides, oxígeno...) están en js/nivel2.js; textos, colores y teclas
+  al principio de js/scenes/Nivel2Scene.js. Efectos nuevos en js/audio.js: disparo, explosion, choque, cuenta, despegue, oxigeno.
+- Para probarlo directamente: index.html?nivel=2
 
 ## Modo 2 jugadores (pantalla dividida)
 En la portada se elige **1 JUGADOR** o **2 JUGADORES** (flechas o teclas 1 / 2, y ENTER).
@@ -36,6 +59,8 @@ rotas y enemigos destruidos). En la sala de espera se vuelve al inicio. Los text
   En algunas redes (colegios, empresas) la conexión directa puede estar bloqueada.
 
 ## Archivos nuevos
+- js/nivel2.js              diseño del Nivel 2
+- js/scenes/Nivel2Scene.js  el Nivel 2 (escena de Phaser + mundo 3D con Three.js)
 - js/red.js                 conexión online (PeerJS): salas, mensajes y desconexión
 - js/scenes/LobbyScene.js   pantalla para crear una sala o unirse con un código
 - js/scenes/EsperaScene.js  espera a que los dos jugadores online estén listos y reparte las piezas

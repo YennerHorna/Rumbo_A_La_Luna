@@ -10,6 +10,23 @@ html, body {
   height: 100%;
 }
 
+/* Nivel 2: el lienzo de Phaser (fondo transparente) va encima del lienzo 3D del espacio (Three.js) */
+#game canvas {
+  position: relative;
+  z-index: 1;
+}
+
+.espacio3d {
+  position: fixed;
+  z-index: 0;
+  display: block;
+  pointer-events: none;
+}
+
+.espacio3d[hidden] {
+  display: none;
+}
+
 /* ---------- Panel de ajustes de voz ---------- */
 :root {
   --ui-contorno: #112021;

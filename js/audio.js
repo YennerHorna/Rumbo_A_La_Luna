@@ -2,6 +2,7 @@
 //
 //  - Sonido.musica('menu' | 'nivel' | null)  cambia la música con un fundido; si ya suena esa, no hace nada.
 //  - Sonido.efecto('salto' | 'agacharse' | 'recolectar' | 'logro' | 'clic')
+//                  y en el Nivel 2: 'disparo' | 'explosion' | 'choque' | 'cuenta' | 'despegue' | 'oxigeno' | 'alunizaje'
 //  - Sonido.ajustes / aplicar() / guardar()  volúmenes y silencio (se editan en el panel del engranaje)
 //
 // Reglas que cumple:
@@ -333,6 +334,56 @@ const Sonido = (() => {
     },
     // Botones
     clic: { min: 0.1, dur: 0.1, suena: (t) => barrido(t, 'square', 520, 780, 0.07, 0.08) },
+
+    // ----- Nivel 2 (la nave) -----
+    // Disparo láser: pitido corto que baja
+    disparo: { min: 0.08, dur: 0.1, suena: (t) => barrido(t, 'square', 1300, 420, 0.08, 0.035) },
+    // Asteroide destruido: estallido de ruido con un golpe grave
+    explosion: {
+      min: 0.06,
+      dur: 0.45,
+      suena: (t) => {
+        ruido(bus.efectos, t, 0.35, 0.22, 400);
+        barrido(t, 'triangle', 160, 40, 0.3, 0.25);
+      },
+    },
+    // La nave choca con un asteroide
+    choque: {
+      min: 0.3,
+      dur: 0.5,
+      suena: (t) => {
+        ruido(bus.efectos, t, 0.45, 0.3, 150);
+        barrido(t, 'sawtooth', 220, 50, 0.4, 0.12);
+      },
+    },
+    // Cuenta atrás (3, 2, 1) y despegue
+    cuenta: { min: 0.3, dur: 0.3, suena: (t) => nota(bus.efectos, t, 72, 0.12, { tipo: 'square', vol: 0.07, suelta: 0.1, filtro: 3000 }) },
+    despegue: {
+      min: 1,
+      dur: 1.3,
+      suena: (t) => {
+        nota(bus.efectos, t, 84, 0.25, { tipo: 'square', vol: 0.07, suelta: 0.2, filtro: 3500 });
+        ruido(bus.efectos, t, 1.2, 0.18, 200);
+        barrido(t, 'sawtooth', 60, 140, 1.1, 0.08);
+      },
+    },
+    // La nave toca el suelo de la Luna: golpe sordo y soplido de polvo
+    alunizaje: {
+      min: 1,
+      dur: 0.9,
+      suena: (t) => {
+        barrido(t, 'triangle', 130, 45, 0.5, 0.3);
+        ruido(bus.efectos, t, 0.8, 0.12, 120);
+      },
+    },
+    // Tanque de oxígeno recogido
+    oxigeno: {
+      min: 0.1,
+      dur: 0.4,
+      suena: (t) => [72, 79, 84].forEach((m, i) => {
+        nota(bus.efectos, t + i * 0.07, m, 0.06, { tipo: 'sine', vol: 0.09, ataque: 0.004, suelta: 0.18 });
+      }),
+    },
   };
 
   function efecto(nombre) {

@@ -1375,11 +1375,11 @@ class GameScene extends Phaser.Scene {
     this.fadeOutAll(400, () => this.scene.start('Title'));
   }
 
-  // Fin de nivel: mensaje, fanfarria y vuelta a la portada (el Nivel 2 aún no existe)
+  // Fin de nivel: mensaje, fanfarria y paso al Nivel 2 (los dos jugadores juntos; en online, cada uno en su
+  // ordenador, que también terminan a la vez)
   completeLevel(title, text) {
     if (this.completado) return;
     this.completado = true;
-    if (this.online) Red.silenciar(); // los dos vuelven al inicio: no hace falta avisar de que el otro se va
     Voz.detener();
     this.showNotice(title, text, 3500);
     Sonido.efecto('logro');
@@ -1387,7 +1387,7 @@ class GameScene extends Phaser.Scene {
       p.sprite.body.setVelocityX(0);
       this.playAnim(p, 'idle', true);
     });
-    this.time.delayedCall(3200, () => this.fadeOutAll(700, () => this.scene.start('Title')));
+    this.time.delayedCall(3200, () => this.fadeOutAll(700, () => this.scene.start('Nivel2')));
   }
 
   // ---------- Enemigos ----------
